@@ -78,12 +78,12 @@ config = ShipConfig(
         )
 
 
-k = 5
+k = 2
 route, gain, cost = find_path(
     [A, A1, B, B1, B2, V, V1, M],
     Ship(config, A, set()),
     1691,
-    3,
+    k,
     )
 print('Arms:', k)
 print(' '.join(p.id for p in route))
