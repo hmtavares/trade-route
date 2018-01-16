@@ -1,24 +1,112 @@
 
-                            _~
-                         _~ )_)_~
-                         )_))_))_)
-                         _!__!__!_
-                         \______t/
+# FORKED
+A fork of the github project eugene-eeo/trade-route
 
-                       ~ trade-route ~
+# The Problem
 
-    Program to calculate the 'best' sequence of shipments for
-    transports in Hades' Star using a bastardized version of
-    the minmax algorithm. We assume that:
+* Some number of planets each some distance from each other.
+* Planets have shipments
+* Each shipment has a destination and a value when delivered
+* Planets will have shipments with various values and various destinations
+* Ships use fuel travel between planets.
+* The ship has N 'slots'. Each slot can carry a single shipment.
 
-     o  A Transport Ship will load as many shipments as possible
-        for the next planet in a calculated route.
-     o  No cargo can be stored on any planet.
-     o  The distance between any two planets is provided.
-     o  No new shipments on any planets.
+Ships pickup shipments and deliver them to the destination planet
 
-    Weighting is done by using:
+The shipment values are not directly tied to the distance of the destination. i.e. semi-random.
 
-      score = k_g * creditsGained - k_c * hydrogenCost
+From the above we can see that Money(credits) == Fuel
 
+# The Goal
 
+A program in Python that can take the fixed data (planets and distances) and given a set of shipments per planet figure out a pickup/delivery route to maximize the income for the least amount of fuel used.
+
+It's should be clear that keeping the ship full as it leaves each stop will help maximize $/fuel.
+
+The project this is forked from is a pretty good start. It only looks ahead at the next stop. Not optimal when further stops along the route included shipments from previous stops that COULD have been loaded (but weren't)
+
+# Installation
+Assuming you already have Python installed cloning this project should be all you need to do 
+
+## Python 3
+[Install Python 3 for your system.](https://www.python.org/downloads/)
+
+I'm using Python 3.6.3
+
+# Run test.py
+
+python test.py
+
+Currently everything is hard coded. There's a fair amount of stuff not used from the forked project.
+
+# Code Artifacts
+Things that ARE used by my changes:
+
+## `trade_route.py`
+```python
+class Ship
+ def load_value()
+ def unload_new()
+class Planet
+class Node
+
+named tuple Item
+named tuple ShipConfig
+```
+
+## `test.py`
+### Construct a list of planets
+An example of this is `planet_list` and `tree_planet_list`
+
+### Define the distance between each planet.
+
+This is represtented by a python dictionary where the key is a set of the two planets, e.g. (planet1, planet2),  and the value is the distance between them.
+This dictionary is stored in a ShipConfig
+
+## Define Items for each planet
+You'll see a long lists of Items defined for each planet
+
+### Build a tree of all possible planet connections
+This gets big fast.
+
+#### build_to_k()
+My first tree builder. It takes a limit value (step) and builds down that many steps. The 'k' is historical. The original author used a value 'k' to represent steps
+
+#### build_to_hk()
+This is the current tree builder. The 'h' here is "hydrogen" or "hydro", the fuel in the game. It takes a limit value (step) and a fuel value (hydro) and builds down each branch until it runs out of fuel or steps
+
+## Get the routes
+Now that we have a tree describing all possble routes (within our limits) we need to produce individual routes.
+build_route() walks each branch creating a list that is the route described by each trip from root to end-leaf. build_route returns a list of all these routes.
+
+## Calculate income and hydro use
+Work each route.
+1. Starting with the begining planet collect shipments
+2. Move to the next planet in the route - consuming hydro
+3. Offload shipments for that planet - collecting income
+4. Repeat
+
+Record all of this for each route
+
+## Calculate outcomes
+Show the routes that have the min and max:
+* Route Distance
+* Ratio credits/hydro
+* Income
+
+# Implementation Complications
+## Planetary shipments:
+In order to work each route the program needs to consume shipments from the planetary shipment lists. This becomes a problem as the first route will update these lists by popping off the Items. The next route will then be working with modified Item lists for each planet. BAD
+
+This is solved by the function copy_route(). It walks each route producing a copy of each planet (and more specifically, its item list). This way as the route is worked and the items are removed, the next route processed isn't effected.
+
+# Optimizations
+## Tree building
+Turns out this isn't the critical path. Even for a depth of 7 it only takes a few seconds to build out a tree. Of course this is O(N^2) so going much higher might make this take a long time. This could be shortened by not pursuing branches where there are no shipments to the next hop but this complicates the tree building logic greatly. Currently it's pretty dumb.
+
+One potential optimization would be to create the tree once and save the results to a file. The tree won't change until a new planet is introduced. If loading a file with a tree built to depth 10 (or 100 or whatever) is faster than building it on the fly this would be the way to go.
+
+## Route Building
+This is where all the time goes. This is also were pruning could work. If there is no shipment for the next hop then don't go down that branch. This is likely to save quite a bit of time.
+
+calculate_route() is an attempt at starting this optimization. It requires that the route planets be copied as the route is built ( I think). I'm still working on it.
